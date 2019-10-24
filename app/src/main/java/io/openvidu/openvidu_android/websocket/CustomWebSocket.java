@@ -44,7 +44,6 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import io.openvidu.openvidu_android.activities.PushToVideoActivity;
 import io.openvidu.openvidu_android.constants.JsonConstants;
 import io.openvidu.openvidu_android.observers.CustomPeerConnectionObserver;
 import io.openvidu.openvidu_android.observers.CustomSdpObserver;
@@ -54,7 +53,7 @@ import io.openvidu.openvidu_android.openvidu.Participant;
 import io.openvidu.openvidu_android.openvidu.RemoteParticipant;
 import io.openvidu.openvidu_android.openvidu.Session;
 
-public class CustomWebSocket extends AsyncTask<PushToVideoActivity, Void, Void> implements WebSocketListener {
+public class CustomWebSocket extends AsyncTask<Void, Void, Void> implements WebSocketListener {
 
     private final String TAG = "CustomWebSocketListener";
     private final int PING_MESSAGE_INTERVAL = 5;
@@ -587,7 +586,7 @@ public class CustomWebSocket extends AsyncTask<PushToVideoActivity, Void, Void> 
     }
 
     @Override
-    protected Void doInBackground(PushToVideoActivity... sessionActivities) {
+    protected Void doInBackground(Void... sessionActivities) {
         try {
             WebSocketFactory factory = new WebSocketFactory();
             SSLContext sslContext = SSLContext.getInstance("TLS");

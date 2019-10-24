@@ -92,7 +92,7 @@
             android:id="@+id/btn_toggle_camera"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:text="Toggle Camera"
+            android:text="Toggle Speakerphone"
             android:background="@color/colorPrimary"
             android:textColor="#fff"
             android:minLines="2"

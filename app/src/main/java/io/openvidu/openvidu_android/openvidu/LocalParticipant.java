@@ -129,15 +129,15 @@ public class LocalParticipant extends Participant {
         }
     }
 
-    public void startStopCapture(boolean flag){
-        if(flag) {
+    public void toggleCapture(boolean allowCapturing){
+        if(allowCapturing) {
+            videoCapturer.startCapture (480, 640, 30);
+        } else {
             try {
                 videoCapturer.stopCapture ();
             } catch (InterruptedException e) {
                 e.printStackTrace ();
             }
-        } else {
-            videoCapturer.startCapture (480, 640, 30);
         }
     }
 

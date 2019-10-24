@@ -115,12 +115,12 @@ public class CallFragment extends Fragment implements WsConnectionListener {
 
     private void startPtv() {
         audioManager.setMicrophoneMute(false);
-        localParticipant.startStopCapture(false);
+        localParticipant.toggleCapture(false);
     }
 
     private void stopPtv() {
         audioManager.setMicrophoneMute(true);
-        localParticipant.startStopCapture(true);
+        localParticipant.toggleCapture(true);
     }*/
 
     private void initializePtt() {
@@ -202,7 +202,7 @@ public class CallFragment extends Fragment implements WsConnectionListener {
         String participantName = PARTICIPANT_NAME;
         localParticipant = new LocalParticipant(participantName, session, requireContext(), localVideoView);
         localParticipant.startCamera(true);
-        localParticipant.startStopCapture(false);
+        localParticipant.toggleCapture(true);
         isSessionLive = true;
 
         requireActivity().runOnUiThread(() -> {
@@ -317,25 +317,32 @@ public class CallFragment extends Fragment implements WsConnectionListener {
 
             case R.id.btn_toggle_av:
                 Log.d(TAG, "toggle a/v");
+                String msg = String.format("Turned %s video streaming", isVideoStreaming ? "off" : "on");
 
-                localParticipant.startStopCapture(!isVideoStreaming);
+                localParticipant.toggleCapture(!isVideoStreaming);
                 isVideoStreaming = !isVideoStreaming;
+
+                Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
                 break;
 
             case R.id.btn_toggle_mic:
                 Log.d(TAG, "toggle mic");
+                msg = String.format("Turned %s audio streaming", isAudioStreaming ? "off" : "on");
 
                 localParticipant.muteUnmuteMic(!isAudioStreaming);
                 isAudioStreaming = !isAudioStreaming;
 
+                Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
                 break;
 
             case R.id.btn_toggle_camera:
                 Log.d(TAG, "toggle speaker");
+                msg = String.format("Turned %s loud speaker", isFrontCamera ? "off" : "on");
 
                 getAudioManager().setSpeakerphoneOn(!isFrontCamera);
                 isFrontCamera = !isFrontCamera;
 
+                Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
                 break;
         }
     }
