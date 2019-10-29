@@ -36,11 +36,26 @@
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
         android:layout_marginTop="8dp"
-        android:onClick="pushToVideo"
-        android:text="Call"
+        android:onClick="makeVideoCall"
+        android:text="Video"
         android:textAllCaps="false"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/et1" />
+
+    <Button
+        android:id="@+id/button2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:layout_marginTop="8dp"
+        android:onClick="makeAudioCall"
+        android:text="Audio"
+        android:textAllCaps="false"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/button" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

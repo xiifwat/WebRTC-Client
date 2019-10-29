@@ -11,10 +11,12 @@ public class RemoteParticipant extends Participant {
     private View view;
     private SurfaceViewRenderer videoView;
     private TextView participantNameText;
+    private String resourceType;
 
-    public RemoteParticipant(String connectionId, String participantName, Session session) {
-        super(connectionId, participantName, session);
+    public RemoteParticipant(String connectionId, String participantName, Session session, String resourceType) {
+        super(connectionId, participantName, session, resourceType);
         this.session.addRemoteParticipant(this);
+        this.resourceType = resourceType;
     }
 
     public View getView() {
@@ -44,5 +46,10 @@ public class RemoteParticipant extends Participant {
     @Override
     public void dispose() {
         super.dispose();
+    }
+
+    @Override
+    public String getResourceType() {
+        return resourceType;
     }
 }

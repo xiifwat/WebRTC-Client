@@ -26,10 +26,12 @@ public class PushToVideoActivity extends AppCompatActivity {
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
 
         String session1 = getIntent().getStringExtra("session1");
+        String mode = getIntent().getStringExtra("mode");
 
         if(!session1.isEmpty()) {
             Bundle b = new Bundle();
-            b.putString("data", session1);
+            b.putString("sessionID", session1);
+            b.putString("call_mode", mode);
 
             CallFragment f = new CallFragment();
             f.setArguments(b);

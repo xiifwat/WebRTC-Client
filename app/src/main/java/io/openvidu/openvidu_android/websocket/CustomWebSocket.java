@@ -86,11 +86,13 @@ public class CustomWebSocket extends AsyncTask<Void, Void, Void> implements WebS
     private WsConnectionListener mListener;
     private WebSocket websocket;
     private boolean websocketCancelled = false;
+    private String callMode;
 
-    public CustomWebSocket(Session session, String openviduUrl, WsConnectionListener mListener) {
+    public CustomWebSocket(Session session, String openviduUrl, WsConnectionListener mListener, String callMode) {
         this.session = session;
         this.openviduUrl = openviduUrl;
         this.mListener = mListener;
+        this.callMode = callMode;
     }
 
     @Override
@@ -169,9 +171,9 @@ public class CustomWebSocket extends AsyncTask<Void, Void, Void> implements WebS
         }
     }
 
-    public void joinRoom() {
+    public void joinRoom(String mode) {
         Map<String, String> joinRoomParams = new HashMap<>();
-        joinRoomParams.put(JsonConstants.METADATA, "{\"clientData\": \"" + this.session.getLocalParticipant().getParticipantName() + "\"}");
+        joinRoomParams.put(JsonConstants.METADATA, "{\"clientData\": \"" + this.session.getLocalParticipant().getParticipantName() + "\",\"mode\":\""+mode+"\"}");
         joinRoomParams.put("secret", "");
         joinRoomParams.put("session", this.session.getId());
         joinRoomParams.put("platform", "Android " + android.os.Build.VERSION.SDK_INT);
@@ -330,7 +332,8 @@ public class CustomWebSocket extends AsyncTask<Void, Void, Void> implements WebS
     private RemoteParticipant newRemoteParticipantAux(JSONObject participantJson) throws JSONException {
         final String connectionId = participantJson.getString(JsonConstants.ID);
         final String participantName = new JSONObject(participantJson.getString(JsonConstants.METADATA)).getString("clientData");
-        final RemoteParticipant remoteParticipant = new RemoteParticipant(connectionId, participantName, this.session);
+        final String mode = new JSONObject (participantJson.getString(JsonConstants.METADATA)).getString("mode");
+        final RemoteParticipant remoteParticipant = new RemoteParticipant(connectionId, participantName, this.session, mode);
         //((CallFragment) this.fra).createRemoteParticipantVideo(remoteParticipant);
 
         mListener.onRemoteParticipantJoined(remoteParticipant);
@@ -415,7 +418,7 @@ public class CustomWebSocket extends AsyncTask<Void, Void, Void> implements WebS
             Exception {
         Log.i(TAG, "Connected");
         pingMessageHandler();
-        this.joinRoom();
+        this.joinRoom(callMode);
     }
 
     @Override

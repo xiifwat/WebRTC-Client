@@ -3,6 +3,8 @@ package io.openvidu.openvidu_android.openvidu;
 import android.content.Context;
 import android.os.Build;
 
+import androidx.annotation.Nullable;
+
 import org.webrtc.AudioSource;
 import org.webrtc.Camera1Enumerator;
 import org.webrtc.Camera2Enumerator;
@@ -29,13 +31,15 @@ public class LocalParticipant extends Participant {
 
     private Collection<IceCandidate> localIceCandidates;
     private SessionDescription localSessionDescription;
+    private String resourceType;
 
-    public LocalParticipant(String participantName, Session session, Context context, SurfaceViewRenderer localVideoView) {
-        super(participantName, session);
+    public LocalParticipant(String participantName, Session session, Context context, @Nullable SurfaceViewRenderer localVideoView, String resourceType) {
+        super(participantName, session, resourceType);
         this.localVideoView = localVideoView;
         this.context = context;
         this.participantName = participantName;
         this.localIceCandidates = new ArrayList<>();
+        this.resourceType = resourceType;
         session.setLocalParticipant(this);
     }
 
@@ -64,7 +68,8 @@ public class LocalParticipant extends Participant {
         // create VideoTrack
         this.videoTrack = peerConnectionFactory.createVideoTrack("100", videoSource);
         // display in localView
-        this.videoTrack.addSink(localVideoView);
+        if(localVideoView!=null)
+            this.videoTrack.addSink(localVideoView);
     }
 
     private VideoCapturer createCameraCapturer(boolean isFrontCamera) {
@@ -119,7 +124,7 @@ public class LocalParticipant extends Participant {
     public void dispose() {
         super.dispose();
         if (videoTrack != null) {
-            videoTrack.removeSink(localVideoView);
+            if(localVideoView!=null) videoTrack.removeSink(localVideoView);
             videoCapturer.dispose();
             videoCapturer = null;
         }
@@ -146,5 +151,10 @@ public class LocalParticipant extends Participant {
             audioTrack.setEnabled(true);
         else if(!flag && audioTrack.enabled())
             audioTrack.setEnabled(false);
+    }
+
+    @Override
+    public String getResourceType() {
+        return resourceType;
     }
 }

@@ -33,6 +33,7 @@ import java.io.IOException;
 
 import io.openvidu.openvidu_android.OpenViduApp;
 import io.openvidu.openvidu_android.R;
+import io.openvidu.openvidu_android.constants.JsonConstants;
 import io.openvidu.openvidu_android.observers.WsConnectionListener;
 import io.openvidu.openvidu_android.openvidu.LocalParticipant;
 import io.openvidu.openvidu_android.openvidu.RemoteParticipant;
@@ -69,6 +70,8 @@ public class CallFragment extends Fragment implements WsConnectionListener {
     private boolean isAudioStreaming = true;
     private boolean isFrontCamera = true;
 
+    private String callMode;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -77,7 +80,8 @@ public class CallFragment extends Fragment implements WsConnectionListener {
 
         initializeView();
 
-        SESSION_NAME = getArguments()==null ? "abc" : getArguments().getString("data");
+        callMode = getArguments()==null ? JsonConstants.MODE_VIDEO_CALL : getArguments().getString("call_mode");
+        SESSION_NAME = getArguments()==null ? "abc" : getArguments().getString("sessionID");
         PARTICIPANT_NAME = android.os.Build.MODEL;
 
 
@@ -200,10 +204,17 @@ public class CallFragment extends Fragment implements WsConnectionListener {
 
         // Initialize our local participant and createRemoteParticipantVideostart local camera
         String participantName = PARTICIPANT_NAME;
-        localParticipant = new LocalParticipant(participantName, session, requireContext(), localVideoView);
-        localParticipant.startCamera(true);
-        localParticipant.toggleCapture(true);
         isSessionLive = true;
+
+        if(callMode.equals(JsonConstants.MODE_VIDEO_CALL)) {
+            localParticipant = new LocalParticipant(participantName, session, requireContext(), localVideoView, callMode);
+            localParticipant.startCamera(true);
+            localParticipant.toggleCapture(true);
+        } else {
+            localParticipant = new LocalParticipant(participantName, session, requireContext(), null, callMode);
+            localParticipant.startCamera(true);
+            localParticipant.toggleCapture(false);
+        }
 
         requireActivity().runOnUiThread(() -> {
             // Update local participant view
@@ -217,7 +228,7 @@ public class CallFragment extends Fragment implements WsConnectionListener {
     }
 
     private void startWebSocket() {
-        CustomWebSocket webSocket = new CustomWebSocket(session, OPENVIDU_URL, this);
+        CustomWebSocket webSocket = new CustomWebSocket(session, OPENVIDU_URL, this, callMode);
         webSocket.execute();
         session.setWebSocket(webSocket);
     }
@@ -377,7 +388,7 @@ public class CallFragment extends Fragment implements WsConnectionListener {
 
     @Override
     public void onRemoteParticipantJoined(RemoteParticipant remoteParticipant) {
-        Log.i(TAG, "onRemoteParticipantJoined");
+        Log.i(TAG, "onRemoteParticipantJoined. Mode: " + remoteParticipant.getResourceType());
 
         Handler mainHandler = new Handler(requireContext().getMainLooper());
         Runnable myRunnable = () -> {
@@ -412,7 +423,7 @@ public class CallFragment extends Fragment implements WsConnectionListener {
 
     @Override
     public void onRemoteMediaStream(MediaStream remoteMediaStream, RemoteParticipant remoteParticipant) {
-        Log.i(TAG, "onRemoteMediaStream");
+        Log.i(TAG, "onRemoteMediaStream. Mode: " + remoteParticipant.getResourceType());
 
         VideoTrack videoTrack = remoteMediaStream.videoTracks.get(0);
         videoTrack.addSink(remoteParticipant.getVideoView());

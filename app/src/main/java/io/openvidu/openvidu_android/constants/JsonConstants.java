@@ -47,4 +47,7 @@ public final class JsonConstants {
     public static final String SDP_ANSWER = "sdpAnswer";
     public static final String METADATA = "metadata";
 
+    public static final String MODE_AUDIO_CALL = "audio";
+    public static final String MODE_VIDEO_CALL = "video";
+
 }

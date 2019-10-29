@@ -21,16 +21,19 @@ public abstract class Participant {
     protected AudioTrack audioTrack;
     protected VideoTrack videoTrack;
     protected MediaStream mediaStream;
+    protected String resourceType;
 
-    public Participant(String participantName, Session session) {
+    public Participant(String participantName, Session session, String resourceType) {
         this.participantName = participantName;
         this.session = session;
+        this.resourceType = resourceType;
     }
 
-    public Participant(String connectionId, String participantName, Session session) {
+    public Participant(String connectionId, String participantName, Session session, String resourceType) {
         this.connectionId = connectionId;
         this.participantName = participantName;
         this.session = session;
+        this.resourceType = resourceType;
     }
 
     public String getConnectionId() {
@@ -79,6 +82,10 @@ public abstract class Participant {
 
     public void setMediaStream(MediaStream mediaStream) {
         this.mediaStream = mediaStream;
+    }
+
+    public String getResourceType() {
+        return resourceType;
     }
 
     public void dispose() {
