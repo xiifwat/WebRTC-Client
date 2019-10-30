@@ -215,6 +215,7 @@ public class CallFragment extends Fragment implements WsConnectionListener {
             localParticipant.startCamera(true);
             localParticipant.toggleCapture(false);
         }
+        localParticipant.enableAudioInput(true);
 
         requireActivity().runOnUiThread(() -> {
             // Update local participant view
@@ -340,7 +341,7 @@ public class CallFragment extends Fragment implements WsConnectionListener {
                 Log.d(TAG, "toggle mic");
                 msg = String.format("Turned %s audio streaming", isAudioStreaming ? "off" : "on");
 
-                localParticipant.muteUnmuteMic(!isAudioStreaming);
+                localParticipant.enableAudioInput(!isAudioStreaming);
                 isAudioStreaming = !isAudioStreaming;
 
                 Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();

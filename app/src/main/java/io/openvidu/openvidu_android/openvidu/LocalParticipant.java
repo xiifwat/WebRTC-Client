@@ -51,6 +51,7 @@ public class LocalParticipant extends Participant {
         // create AudioSource
         AudioSource audioSource = peerConnectionFactory.createAudioSource(new MediaConstraints());
         this.audioTrack = peerConnectionFactory.createAudioTrack("101", audioSource);
+        this.audioTrack.setEnabled(false);
 
         surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", eglBaseContext);
         // create VideoCapturer
@@ -146,11 +147,12 @@ public class LocalParticipant extends Participant {
         }
     }
 
-    public void muteUnmuteMic(boolean flag) {
-        if(flag && !audioTrack.enabled())
+    public void enableAudioInput(boolean enable) {
+        /*if(flag && !audioTrack.enabled())
             audioTrack.setEnabled(true);
         else if(!flag && audioTrack.enabled())
-            audioTrack.setEnabled(false);
+            audioTrack.setEnabled(false);*/
+        audioTrack.setEnabled(enable);
     }
 
     @Override
