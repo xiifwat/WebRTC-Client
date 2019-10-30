@@ -68,9 +68,14 @@ public class LocalParticipant extends Participant {
 
         // create VideoTrack
         this.videoTrack = peerConnectionFactory.createVideoTrack("100", videoSource);
-        // display in localView
-        if(localVideoView!=null)
-            this.videoTrack.addSink(localVideoView);
+    }
+
+    public void showStream() {
+        if(localVideoView!=null) this.videoTrack.addSink(localVideoView);
+    }
+
+    public void removeStream() {
+        if(localVideoView!=null) this.videoTrack.removeSink(localVideoView);
     }
 
     private VideoCapturer createCameraCapturer(boolean isFrontCamera) {
@@ -125,7 +130,6 @@ public class LocalParticipant extends Participant {
     public void dispose() {
         super.dispose();
         if (videoTrack != null) {
-            if(localVideoView!=null) videoTrack.removeSink(localVideoView);
             videoCapturer.dispose();
             videoCapturer = null;
         }

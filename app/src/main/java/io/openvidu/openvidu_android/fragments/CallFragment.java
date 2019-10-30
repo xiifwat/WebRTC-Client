@@ -209,6 +209,7 @@ public class CallFragment extends Fragment implements WsConnectionListener {
         if(callMode.equals(JsonConstants.MODE_VIDEO_CALL)) {
             localParticipant = new LocalParticipant(participantName, session, requireContext(), localVideoView, callMode);
             localParticipant.startCamera(true);
+            localParticipant.showStream();
             localParticipant.toggleCapture(true);
         } else {
             localParticipant = new LocalParticipant(participantName, session, requireContext(), null, callMode);
@@ -371,17 +372,19 @@ public class CallFragment extends Fragment implements WsConnectionListener {
 
     @Override
     public void onRemoteParticipantLeft(RemoteParticipant remoteParticipant) {
+        int participantCount = session.remoteParticipantCount();
+        Log.d(TAG, "onRemoteParticipantLeft: " + participantCount);
 
         Handler mainHandler = new Handler(requireContext().getMainLooper());
         Runnable myRunnable = () -> {
-            int participantCount = session.remoteParticipantCount();
-            Log.d(TAG, "onRemoteParticipantLeft: " + participantCount);
-
-            session.removeView(remoteParticipant.getView());
 
             if(participantCount==0) {
-                leaveSession();
+                if(callMode.equals(JsonConstants.MODE_VIDEO_CALL))
+                    localParticipant.removeStream();
                 onCall = false;
+                leaveSession();
+            } else {
+                session.removeView(remoteParticipant.getView());
             }
         };
         mainHandler.post(myRunnable);
