@@ -35,7 +35,7 @@ public class LocalParticipant extends Participant {
 
     public LocalParticipant(String participantName, Session session, Context context, @Nullable SurfaceViewRenderer localVideoView, String resourceType) {
         super(participantName, session, resourceType);
-        this.localVideoView = localVideoView;
+        //this.localVideoView = localVideoView;
         this.context = context;
         this.participantName = participantName;
         this.localIceCandidates = new ArrayList<>();
@@ -70,12 +70,21 @@ public class LocalParticipant extends Participant {
         this.videoTrack = peerConnectionFactory.createVideoTrack("100", videoSource);
     }
 
-    public void showStream() {
-        if(localVideoView!=null) this.videoTrack.addSink(localVideoView);
+    public void showStream(SurfaceViewRenderer videoView) {
+        this.localVideoView = videoView;
+        this.videoTrack.addSink(videoView);
     }
 
-    public void removeStream() {
-        if(localVideoView!=null) this.videoTrack.removeSink(localVideoView);
+    public void removeStream(SurfaceViewRenderer videoView) {
+        this.videoTrack.removeSink(videoView);
+    }
+
+    public void swap(SurfaceViewRenderer newVideoView) {
+        this.videoTrack.removeSink(this.localVideoView);
+
+        this.localVideoView = newVideoView;
+
+        this.videoTrack.addSink(this.localVideoView);
     }
 
     private VideoCapturer createCameraCapturer(boolean isFrontCamera) {
@@ -162,5 +171,9 @@ public class LocalParticipant extends Participant {
     @Override
     public String getResourceType() {
         return resourceType;
+    }
+
+    public SurfaceViewRenderer getVideoView() {
+        return this.localVideoView;
     }
 }

@@ -35,6 +35,14 @@ public class RemoteParticipant extends Participant {
         this.videoView = videoView;
     }
 
+    public void swap(SurfaceViewRenderer newVideoView) {
+        this.videoTrack.removeSink(this.videoView);
+
+        this.videoView = newVideoView;
+
+        this.videoTrack.addSink(this.videoView);
+    }
+
     public TextView getParticipantNameText() {
         return this.participantNameText;
     }

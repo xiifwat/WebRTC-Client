@@ -109,24 +109,6 @@ public class CallFragment extends Fragment implements WsConnectionListener {
         btnToggleMic.setOnClickListener(this::onClick);
     }
 
-    /*private void startPtt() {
-        audioManager.setMicrophoneMute(false);
-    }
-
-    private void stopPtt() {
-        audioManager.setMicrophoneMute(true);
-    }
-
-    private void startPtv() {
-        audioManager.setMicrophoneMute(false);
-        localParticipant.toggleCapture(false);
-    }
-
-    private void stopPtv() {
-        audioManager.setMicrophoneMute(true);
-        localParticipant.toggleCapture(true);
-    }*/
-
     private void initializePtt() {
         if (arePermissionGranted()) {
             initLocalVideoView();
@@ -209,7 +191,7 @@ public class CallFragment extends Fragment implements WsConnectionListener {
         if(callMode.equals(JsonConstants.MODE_VIDEO_CALL)) {
             localParticipant = new LocalParticipant(participantName, session, requireContext(), localVideoView, callMode);
             localParticipant.startCamera(true);
-            localParticipant.showStream();
+            localParticipant.showStream(localVideoView);
             localParticipant.toggleCapture(true);
         } else {
             localParticipant = new LocalParticipant(participantName, session, requireContext(), null, callMode);
@@ -380,7 +362,7 @@ public class CallFragment extends Fragment implements WsConnectionListener {
 
             if(participantCount==0) {
                 if(callMode.equals(JsonConstants.MODE_VIDEO_CALL))
-                    localParticipant.removeStream();
+                    localParticipant.removeStream(localParticipant.getVideoView());
                 onCall = false;
                 leaveSession();
             } else {
@@ -413,7 +395,14 @@ public class CallFragment extends Fragment implements WsConnectionListener {
             remoteParticipant.setView(rowView);
 
             rowView.setOnClickListener(view -> {
-                Toast.makeText(requireContext(), "" + remoteParticipant.getParticipantName(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), remoteParticipant.getParticipantName(), Toast.LENGTH_SHORT).show();
+
+                // Switch view
+                SurfaceViewRenderer tmpRemote = remoteParticipant.getVideoView();
+                SurfaceViewRenderer tmpLocal = localParticipant.getVideoView();
+
+                localParticipant.swap(tmpRemote);
+                remoteParticipant.swap(tmpLocal);
             });
 
             remoteParticipant.getParticipantNameText().setText(remoteParticipant.getParticipantName());
@@ -431,6 +420,8 @@ public class CallFragment extends Fragment implements WsConnectionListener {
 
         VideoTrack videoTrack = remoteMediaStream.videoTracks.get(0);
         videoTrack.addSink(remoteParticipant.getVideoView());
+
+        remoteParticipant.setVideoTrack(videoTrack);
 
         new Handler(requireContext().getMainLooper()).post(() -> {
             Log.d(TAG, "adding video...");
