@@ -11,6 +11,8 @@ import org.webrtc.IceCandidate;
 import org.webrtc.MediaConstraints;
 import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
+import org.webrtc.RtpReceiver;
+import org.webrtc.RtpSender;
 import org.webrtc.SessionDescription;
 import org.webrtc.SoftwareVideoDecoderFactory;
 import org.webrtc.SoftwareVideoEncoderFactory;
@@ -173,6 +175,10 @@ public class Session {
         return this.remoteParticipants.size();
     }
 
+    public Map<String, RemoteParticipant> getRemoteParticipants() {
+        return remoteParticipants;
+    }
+
     public void leaveSession() {
         try {
             websocket.setWebsocketCancelled(true);
@@ -180,7 +186,8 @@ public class Session {
                 websocket.leaveRoom();
                 websocket.disconnect();
             }
-            this.localParticipant.dispose();
+            // FIXME this part is commented to avoid crash but this is essential
+            /*this.localParticipant.dispose();
             for (RemoteParticipant remoteParticipant : remoteParticipants.values()) {
                 if (remoteParticipant.getPeerConnection() != null) {
                     remoteParticipant.getPeerConnection().close();
@@ -190,9 +197,34 @@ public class Session {
             if (peerConnectionFactory != null) {
                 peerConnectionFactory.dispose();
                 peerConnectionFactory = null;
-            }
+            }*/
         } catch (Exception e) {
             Log.e("SessionAct", "Session.leaveSession", e);
+        }
+    }
+
+    public void leaveSessionMinimal() {
+        this.localParticipant.getMediaStream().audioTracks.get(0).dispose();
+
+        websocket.setWebsocketCancelled(true);
+        if (websocket != null) {
+            websocket.leaveRoom();
+            websocket.disconnect();
+        }
+
+        /*this.localParticipant.removeStream(this.localParticipant.getVideoView());
+
+        this.localParticipant.audioTrack.dispose();*/
+    }
+
+    public void zzz() {
+        this.localParticipant.toggleCapture(false);
+        this.localParticipant.removeStream(localParticipant.getVideoView());
+        this.localParticipant.getVideoView().release();
+
+        for (RemoteParticipant remoteParticipant : remoteParticipants.values()) {
+            remoteParticipant.getVideoView().release();
+            views_container.removeView(remoteParticipant.getView()); // Must exec from UI thread
         }
     }
 

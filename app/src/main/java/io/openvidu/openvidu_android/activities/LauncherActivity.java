@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import io.openvidu.openvidu_android.R;
 import io.openvidu.openvidu_android.constants.JsonConstants;
+import io.openvidu.openvidu_android.utils.CallManager;
 
 public class LauncherActivity extends AppCompatActivity {
 
@@ -17,6 +18,21 @@ public class LauncherActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_launcher);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if(CallManager.hasInstance()) {
+            findViewById(R.id.button).setEnabled(false);
+            findViewById(R.id.button2).setEnabled(false);
+            findViewById(R.id.button3).setEnabled(true);
+        } else {
+            findViewById(R.id.button).setEnabled(true);
+            findViewById(R.id.button2).setEnabled(true);
+            findViewById(R.id.button3).setEnabled(false);
+        }
     }
 
     public void makeVideoCall(View view) {
@@ -46,6 +62,11 @@ public class LauncherActivity extends AppCompatActivity {
         Intent intent = new Intent(this, PushToVideoActivity.class);
         intent.putExtra("session1", session1);
         intent.putExtra("mode", JsonConstants.MODE_AUDIO_CALL);
+        startActivity(intent);
+    }
+
+    public void joinRunningCall(View view) {
+        Intent intent = new Intent(this, PushToVideoActivity.class);
         startActivity(intent);
     }
 }

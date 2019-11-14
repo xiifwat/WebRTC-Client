@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,24 +22,28 @@ import androidx.fragment.app.Fragment;
 
 import com.nex3z.flowlayout.FlowLayout;
 
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.webrtc.EglBase;
-import org.webrtc.MediaStream;
 import org.webrtc.SurfaceViewRenderer;
 import org.webrtc.VideoTrack;
 
 import java.io.IOException;
+import java.util.Map;
 
 import io.openvidu.openvidu_android.OpenViduApp;
 import io.openvidu.openvidu_android.R;
 import io.openvidu.openvidu_android.constants.JsonConstants;
-import io.openvidu.openvidu_android.observers.WsConnectionListener;
 import io.openvidu.openvidu_android.openvidu.LocalParticipant;
 import io.openvidu.openvidu_android.openvidu.RemoteParticipant;
 import io.openvidu.openvidu_android.openvidu.Session;
+import io.openvidu.openvidu_android.utils.CallManager;
 import io.openvidu.openvidu_android.utils.CustomHttpClient;
+import io.openvidu.openvidu_android.utils.MessageEvent;
 import io.openvidu.openvidu_android.websocket.CustomWebSocket;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -46,31 +51,23 @@ import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-public class CallFragment extends Fragment implements WsConnectionListener {
+public class CallFragment extends Fragment {
     private final String TAG = "SessionActivity";
-    private FlowLayout views_container;
-    private SurfaceViewRenderer localVideoView;
     private TextView tvInfo;
     private View rootView;
+    private CustomHttpClient httpClient;
+    private AudioManager audioManager;
+    private FlowLayout views_container;
+    private SurfaceViewRenderer localVideoView;
 
     private String OPENVIDU_URL;
     private String OPENVIDU_SECRET;
-    private String PARTICIPANT_NAME;
-    private String SESSION_NAME;
-    private Session session;
-    private CustomHttpClient httpClient;
-    private AudioManager audioManager;
-    private LocalParticipant localParticipant;
 
     private ImageView btnCall;
     private TextView btnToggleCamera, btnToggleCallMode, btnToggleMic;
-    private boolean isSessionLive = false;
 
-    private boolean isVideoStreaming = true;
-    private boolean isAudioStreaming = true;
-    private boolean isFrontCamera = true;
+    private CallManager mCallManager;
 
-    private String callMode;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -80,17 +77,97 @@ public class CallFragment extends Fragment implements WsConnectionListener {
 
         initializeView();
 
-        callMode = getArguments()==null ? JsonConstants.MODE_VIDEO_CALL : getArguments().getString("call_mode");
-        SESSION_NAME = getArguments()==null ? "abc" : getArguments().getString("sessionID");
-        PARTICIPANT_NAME = android.os.Build.MODEL;
-
-
         getAudioManager().setSpeakerphoneOn(true);
         getAudioManager().setMicrophoneMute(false);
 
-        initializePtt();
+        if (!CallManager.hasInstance()) {
+
+            mCallManager = CallManager.getInstance(requireActivity().getApplicationContext());
+
+            String callMode = getArguments() == null ? JsonConstants.MODE_VIDEO_CALL : getArguments().getString("call_mode");
+            String SESSION_NAME = getArguments() == null ? "abc" : getArguments().getString("sessionID");
+            String PARTICIPANT_NAME = android.os.Build.MODEL;
+
+            mCallManager.setCallMode(callMode);
+            mCallManager.setSESSION_NAME(SESSION_NAME);
+            mCallManager.setPARTICIPANT_NAME(PARTICIPANT_NAME);
+            mCallManager.setOnCall(false);
+
+            mCallManager.setLocalVideoView(localVideoView);
+            mCallManager.setViews_container(views_container);
+
+            initializePtt();
+        } else {
+            // Already a call is ongoing
+            mCallManager = CallManager.getInstance(requireActivity().getApplicationContext());
+
+            if(mCallManager.getSession().remoteParticipantCount()==0) {
+                tvInfo.setText("Ringing...");
+                tvInfo.setVisibility(View.VISIBLE);
+            } else {
+                tvInfo.setVisibility(View.GONE);
+
+                // remote participants
+                Map<String, RemoteParticipant> remoteParticipants = mCallManager.getSession().getRemoteParticipants();
+                //views_container.removeAllViews();
+
+                for (RemoteParticipant remoteParticipant : remoteParticipants.values()) {
+
+                    View rowView = remoteParticipant.getVideoView();
+                    // remove previous parent
+                    ((ViewGroup) rowView.getParent()).removeView(rowView);
+                    FlowLayout.LayoutParams lp = new LinearLayout.LayoutParams(OpenViduApp.cellSize, OpenViduApp.cellSize);
+                    rowView.setLayoutParams(lp);
+                    //int rowId = View.generateViewId();
+                    //rowView.setId(rowId);
+                    views_container.addView(rowView);
+
+                    /*View textView = ((ViewGroup) rowView).getChildAt(1);
+                    remoteParticipant.setParticipantNameText((TextView) textView);
+                    remoteParticipant.setView(rowView);*/
+
+                    rowView.setOnClickListener(view -> {
+                        Toast.makeText(requireContext(), remoteParticipant.getParticipantName(), Toast.LENGTH_SHORT).show();
+
+                        // Switch view
+                        SurfaceViewRenderer tmpRemote = remoteParticipant.getVideoView();
+                        SurfaceViewRenderer tmpLocal = mCallManager.getLocalParticipant().getVideoView();
+
+                        mCallManager.getLocalParticipant().swap(tmpRemote);
+                        remoteParticipant.swap(tmpLocal);
+                    });
+
+                    //remoteParticipant.getParticipantNameText().setText(remoteParticipant.getParticipantName());
+                    //remoteParticipant.getParticipantNameText().setPadding(20, 3, 20, 3);
+                }
+
+                // local participant
+                initLocalVideoView();
+
+                if (mCallManager.getCallMode().equals(JsonConstants.MODE_VIDEO_CALL)) {
+                    mCallManager.getLocalParticipant().showStream(localVideoView);
+                }
+
+            }
+        }
 
         return rootView;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        EventBus.getDefault().register(this);
+        mCallManager.setAppVisible(true);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        EventBus.getDefault().unregister(this);
+        mCallManager.setAppVisible(false);
+
+//        mCallManager.getSession().zzz();
     }
 
     private void initializeView() {
@@ -117,7 +194,7 @@ public class CallFragment extends Fragment implements WsConnectionListener {
             OPENVIDU_SECRET = getString(R.string.default_openvidu_secret);
             httpClient = new CustomHttpClient(OPENVIDU_URL, "Basic " + android.util.Base64.encodeToString(("OPENVIDUAPP:" + OPENVIDU_SECRET).getBytes(), android.util.Base64.DEFAULT).trim());
 
-            String sessionId = SESSION_NAME;
+            String sessionId = mCallManager.getSESSION_NAME();
             getToken(sessionId);
         } else {
             DialogFragment permissionsFragment = new PermissionsDialogFragment();
@@ -182,23 +259,28 @@ public class CallFragment extends Fragment implements WsConnectionListener {
 
     private void getTokenSuccess(String token, String sessionId) {
         // Initialize our session
-        session = new Session(sessionId, token, views_container, requireContext());
+        Session session = new Session(sessionId, token, views_container, requireContext());
+        mCallManager.setSession(session);
 
         // Initialize our local participant and createRemoteParticipantVideostart local camera
-        String participantName = PARTICIPANT_NAME;
-        isSessionLive = true;
+        String participantName = mCallManager.getPARTICIPANT_NAME();
+        mCallManager.setSessionLive(true);
 
-        if(callMode.equals(JsonConstants.MODE_VIDEO_CALL)) {
-            localParticipant = new LocalParticipant(participantName, session, requireContext(), localVideoView, callMode);
+        LocalParticipant localParticipant;
+
+        if (mCallManager.getCallMode().equals(JsonConstants.MODE_VIDEO_CALL)) {
+            localParticipant = new LocalParticipant(participantName, session, requireContext(), localVideoView, mCallManager.getCallMode());
             localParticipant.startCamera(true);
             localParticipant.showStream(localVideoView);
             localParticipant.toggleCapture(true);
         } else {
-            localParticipant = new LocalParticipant(participantName, session, requireContext(), null, callMode);
+            localParticipant = new LocalParticipant(participantName, session, requireContext(), null, mCallManager.getCallMode());
             localParticipant.startCamera(true);
             localParticipant.toggleCapture(false);
         }
         localParticipant.enableAudioInput(true);
+
+        mCallManager.setLocalParticipant(localParticipant);
 
         requireActivity().runOnUiThread(() -> {
             // Update local participant view
@@ -212,9 +294,10 @@ public class CallFragment extends Fragment implements WsConnectionListener {
     }
 
     private void startWebSocket() {
-        CustomWebSocket webSocket = new CustomWebSocket(session, OPENVIDU_URL, this, callMode);
+        CustomWebSocket webSocket = new CustomWebSocket(mCallManager.getSession(),
+                OPENVIDU_URL, mCallManager, mCallManager.getCallMode());
         webSocket.execute();
-        session.setWebSocket(webSocket);
+        mCallManager.getSession().setWebSocket(webSocket);
     }
 
     private void getTokenFailed() {
@@ -223,7 +306,7 @@ public class CallFragment extends Fragment implements WsConnectionListener {
                     requireContext(),
                     "Error connecting to " + OPENVIDU_URL,
                     Toast.LENGTH_LONG).show();
-            isSessionLive = false;
+            mCallManager.setSessionLive(false);
 
             //switchViewToDisconnectedState();
             requireActivity().finish();
@@ -239,40 +322,6 @@ public class CallFragment extends Fragment implements WsConnectionListener {
         localVideoView.setZOrderMediaOverlay(false);
     }
 
-    public void switchViewToDisconnectedState() {
-        requireActivity().runOnUiThread(() -> {
-            localVideoView.clearImage();
-            localVideoView.release();
-
-            Log.i(TAG, "disconnected");
-            requireActivity().finish();
-        });
-    }
-
-
-    public void leaveSession() {
-        /*Thread thread = new Thread("leaveSession__Thread") {
-            @Override
-            public void run() {
-
-            }
-        };
-        thread.setPriority(Thread.MAX_PRIORITY);
-        thread.setDaemon(true);
-        thread.start();*/
-
-        new Handler(requireContext().getMainLooper()).post(() -> {
-            if (isSessionLive) {
-                session.leaveSession();
-                httpClient.dispose();
-                isSessionLive = false;
-
-                Log.d(TAG, "session left, http disposed");
-            }
-
-            switchViewToDisconnectedState();
-        });
-    }
 
     private boolean arePermissionGranted() {
         return (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) != PackageManager.PERMISSION_DENIED) &&
@@ -286,163 +335,173 @@ public class CallFragment extends Fragment implements WsConnectionListener {
     }
 
     private AudioManager getAudioManager() {
-        if(audioManager==null)
+        if (audioManager == null)
             audioManager = (AudioManager) requireContext().getSystemService(Context.AUDIO_SERVICE);
 
         return audioManager;
     }
 
-    private boolean onCall = false;
-
     private void onClick(View view) {
         switch (view.getId()) {
             case R.id.iv_call:
-                if (!isSessionLive) {
+                if (!mCallManager.isSessionLive()) {
                     Toast.makeText(requireContext(), "Session destroyed", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                if (onCall) {
-                    leaveSession();
-                    onCall = false;
+                if (mCallManager.isOnCall()) {
+                    mCallManager.leaveSession();
+                    mCallManager.setOnCall(false);
                 } else {
-                    switchViewToDisconnectedState();
+                    mCallManager.switchViewToDisconnectedState();
                 }
                 break;
 
             case R.id.btn_toggle_av:
                 Log.d(TAG, "toggle a/v");
+                boolean isVideoStreaming = mCallManager.isVideoStreaming();
+
                 String msg = String.format("Turned %s video streaming", isVideoStreaming ? "off" : "on");
 
-                localParticipant.toggleCapture(!isVideoStreaming);
+                mCallManager.getLocalParticipant().toggleCapture(!isVideoStreaming);
                 isVideoStreaming = !isVideoStreaming;
+
+                mCallManager.setVideoStreaming(isVideoStreaming);
 
                 Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
                 break;
 
             case R.id.btn_toggle_mic:
                 Log.d(TAG, "toggle mic");
+                boolean isAudioStreaming = mCallManager.isAudioStreaming();
+
                 msg = String.format("Turned %s audio streaming", isAudioStreaming ? "off" : "on");
 
-                localParticipant.enableAudioInput(!isAudioStreaming);
+                mCallManager.getLocalParticipant().enableAudioInput(!isAudioStreaming);
                 isAudioStreaming = !isAudioStreaming;
+
+                mCallManager.setAudioStreaming(isAudioStreaming);
 
                 Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
                 break;
 
             case R.id.btn_toggle_camera:
                 Log.d(TAG, "toggle speaker");
+                boolean isFrontCamera = mCallManager.isFrontCamera();
+
                 msg = String.format("Turned %s loud speaker", isFrontCamera ? "off" : "on");
 
                 getAudioManager().setSpeakerphoneOn(!isFrontCamera);
                 isFrontCamera = !isFrontCamera;
+
+                mCallManager.setFrontCamera(isFrontCamera);
 
                 Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
                 break;
         }
     }
 
-    @Override
-    public void onRoomJoined() {
-        Log.i(TAG, "onRoomJoined");
+    //----------------------------
 
-        requireActivity().runOnUiThread(() -> {
-            tvInfo.setText("Ringing...");
-            onCall = true;
-        });
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onMessageEvent(MessageEvent event) {
+        int message = event.getCode();
+        Log.d(TAG, "Got message: " + message);
+
+        switch (message) {
+            case -1:
+                Log.d(TAG, "switchViewToDisconnectedState");
+                requireActivity().finish();
+                break;
+
+            case 0:
+                Log.d(TAG, "roomJoined");
+
+                tvInfo.setText("Ringing...");
+                mCallManager.setOnCall(true);
+                break;
+
+            case 1:
+                RemoteParticipant remoteParticipant = event.getRemoteParticipant();
+
+                View rowView = getLayoutInflater().inflate(R.layout.peer_video, null);
+                FlowLayout.LayoutParams lp = new LinearLayout.LayoutParams(OpenViduApp.cellSize, OpenViduApp.cellSize);
+                rowView.setLayoutParams(lp);
+                int rowId = View.generateViewId();
+                rowView.setId(rowId);
+                views_container.addView(rowView);
+                SurfaceViewRenderer videoView = (SurfaceViewRenderer) ((ViewGroup) rowView).getChildAt(0);
+                remoteParticipant.setVideoView(videoView);
+                videoView.setMirror(false);
+                EglBase rootEglBase = EglBase.create();
+                videoView.init(rootEglBase.getEglBaseContext(), null);
+                videoView.setZOrderMediaOverlay(true);
+                View textView = ((ViewGroup) rowView).getChildAt(1);
+                remoteParticipant.setParticipantNameText((TextView) textView);
+                remoteParticipant.setView(rowView);
+
+                rowView.setOnClickListener(view -> {
+                    Toast.makeText(requireContext(), remoteParticipant.getParticipantName(), Toast.LENGTH_SHORT).show();
+
+                    // Switch view
+                    SurfaceViewRenderer tmpRemote = remoteParticipant.getVideoView();
+                    SurfaceViewRenderer tmpLocal = mCallManager.getLocalParticipant().getVideoView();
+
+                    mCallManager.getLocalParticipant().swap(tmpRemote);
+                    remoteParticipant.swap(tmpLocal);
+                });
+
+                remoteParticipant.getParticipantNameText().setText(remoteParticipant.getParticipantName());
+                remoteParticipant.getParticipantNameText().setPadding(20, 3, 20, 3);
+
+                if (tvInfo.getVisibility() == View.VISIBLE)
+                    tvInfo.setVisibility(View.GONE);
+
+                break;
+
+            case 2:
+                Log.d(TAG, "rp left");
+
+                Handler mainHandler = new Handler(Looper.getMainLooper());
+                Runnable myRunnable = () -> {
+
+                    int participantCount = mCallManager.getSession().remoteParticipantCount();
+
+                    if (participantCount == 0) {
+                        LocalParticipant localParticipant = mCallManager.getLocalParticipant();
+
+                        if (mCallManager.getCallMode().equals(JsonConstants.MODE_VIDEO_CALL))
+                            localParticipant.removeStream(localParticipant.getVideoView());
+                        mCallManager.setOnCall(false);
+                        mCallManager.leaveSession();
+                    } else {
+                        mCallManager.getSession().removeView(event.getRemoteParticipant().getView());
+                    }
+                };
+                mainHandler.post(myRunnable);
+                break;
+
+            case 3:
+
+                VideoTrack videoTrack = event.getRemoteMediaStream().videoTracks.get(0);
+                videoTrack.addSink(event.getRemoteParticipant().getVideoView());
+
+                event.getRemoteParticipant().setVideoTrack(videoTrack);
+                // zzz
+                event.getRemoteParticipant().setMediaStream(event.getRemoteMediaStream());
+
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    Log.d(TAG, "adding video...");
+                    event.getRemoteParticipant().getVideoView().setVisibility(View.VISIBLE);
+                });
+                break;
+
+            case 4:
+                // connection failed
+                Toast.makeText(requireContext(), "Connection failed", Toast.LENGTH_LONG).show();
+                mCallManager.leaveSession();
+                break;
+        }
     }
 
-    @Override
-    public void onRemoteParticipantLeft(RemoteParticipant remoteParticipant) {
-        int participantCount = session.remoteParticipantCount();
-        Log.d(TAG, "onRemoteParticipantLeft: " + participantCount);
-
-        Handler mainHandler = new Handler(requireContext().getMainLooper());
-        Runnable myRunnable = () -> {
-
-            if(participantCount==0) {
-                if(callMode.equals(JsonConstants.MODE_VIDEO_CALL))
-                    localParticipant.removeStream(localParticipant.getVideoView());
-                onCall = false;
-                leaveSession();
-            } else {
-                session.removeView(remoteParticipant.getView());
-            }
-        };
-        mainHandler.post(myRunnable);
-    }
-
-    @Override
-    public void onRemoteParticipantJoined(RemoteParticipant remoteParticipant) {
-        Log.i(TAG, "onRemoteParticipantJoined. Mode: " + remoteParticipant.getResourceType());
-
-        Handler mainHandler = new Handler(requireContext().getMainLooper());
-        Runnable myRunnable = () -> {
-            View rowView = this.getLayoutInflater().inflate(R.layout.peer_video, null);
-            FlowLayout.LayoutParams lp = new LinearLayout.LayoutParams(OpenViduApp.cellSize, OpenViduApp.cellSize);
-            rowView.setLayoutParams(lp);
-            int rowId = View.generateViewId();
-            rowView.setId(rowId);
-            views_container.addView(rowView);
-            SurfaceViewRenderer videoView = (SurfaceViewRenderer) ((ViewGroup) rowView).getChildAt(0);
-            remoteParticipant.setVideoView(videoView);
-            videoView.setMirror(false);
-            EglBase rootEglBase = EglBase.create();
-            videoView.init(rootEglBase.getEglBaseContext(), null);
-            videoView.setZOrderMediaOverlay(true);
-            View textView = ((ViewGroup) rowView).getChildAt(1);
-            remoteParticipant.setParticipantNameText((TextView) textView);
-            remoteParticipant.setView(rowView);
-
-            rowView.setOnClickListener(view -> {
-                Toast.makeText(requireContext(), remoteParticipant.getParticipantName(), Toast.LENGTH_SHORT).show();
-
-                // Switch view
-                SurfaceViewRenderer tmpRemote = remoteParticipant.getVideoView();
-                SurfaceViewRenderer tmpLocal = localParticipant.getVideoView();
-
-                localParticipant.swap(tmpRemote);
-                remoteParticipant.swap(tmpLocal);
-            });
-
-            remoteParticipant.getParticipantNameText().setText(remoteParticipant.getParticipantName());
-            remoteParticipant.getParticipantNameText().setPadding(20, 3, 20, 3);
-
-            if(tvInfo.getVisibility()==View.VISIBLE)
-                tvInfo.setVisibility(View.GONE);
-        };
-        mainHandler.post(myRunnable);
-    }
-
-    @Override
-    public void onRemoteMediaStream(MediaStream remoteMediaStream, RemoteParticipant remoteParticipant) {
-        Log.i(TAG, "onRemoteMediaStream. Mode: " + remoteParticipant.getResourceType());
-
-        VideoTrack videoTrack = remoteMediaStream.videoTracks.get(0);
-        videoTrack.addSink(remoteParticipant.getVideoView());
-
-        remoteParticipant.setVideoTrack(videoTrack);
-
-        new Handler(requireContext().getMainLooper()).post(() -> {
-            Log.d(TAG, "adding video...");
-            remoteParticipant.getVideoView().setVisibility(View.VISIBLE);
-        });
-    }
-
-    @Override
-    public void onWsConnected() {
-        //
-    }
-
-    @Override
-    public void onWsConnectionFailed(String msg) {
-        Log.i(TAG, "onWsConnectionFailed");
-
-        Handler mainHandler = new Handler(requireContext().getMainLooper());
-        Runnable myRunnable = () -> {
-            Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show();
-            leaveSession();
-        };
-        mainHandler.post(myRunnable);
-    }
 }

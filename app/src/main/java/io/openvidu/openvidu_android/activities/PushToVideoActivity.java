@@ -28,19 +28,19 @@ public class PushToVideoActivity extends AppCompatActivity {
         String session1 = getIntent().getStringExtra("session1");
         String mode = getIntent().getStringExtra("mode");
 
-        if(!session1.isEmpty()) {
+        CallFragment f = new CallFragment();
+
+        if (session1 != null && !session1.isEmpty()) {
             Bundle b = new Bundle();
             b.putString("sessionID", session1);
             b.putString("call_mode", mode);
-
-            CallFragment f = new CallFragment();
             f.setArguments(b);
-
-            getSupportFragmentManager()
-                    .beginTransaction()
-                    .add(R.id.fr1, f, "fr1")
-                    .commit();
         }
+
+        getSupportFragmentManager()
+                .beginTransaction()
+                .add(R.id.fr1, f, "fr1")
+                .commit();
     }
 
     public void askForPermissions() {
