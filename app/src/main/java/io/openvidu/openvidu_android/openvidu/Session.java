@@ -24,7 +24,6 @@ import java.util.Map;
 
 import io.openvidu.openvidu_android.observers.CustomPeerConnectionObserver;
 import io.openvidu.openvidu_android.observers.CustomSdpObserver;
-import io.openvidu.openvidu_android.utils.CallManager;
 import io.openvidu.openvidu_android.websocket.CustomWebSocket;
 
 public class Session {
@@ -187,9 +186,7 @@ public class Session {
             }
 
             this.localParticipant.enableAudioInput(false);
-            if(CallManager.getInstance().hasAppMinimised()) return;
 
-            // FIXME this part is skipped if the app is minimised to avoid crash but this is essential
             this.localParticipant.dispose();
             for (RemoteParticipant remoteParticipant : remoteParticipants.values()) {
                 if (remoteParticipant.getPeerConnection() != null) {
@@ -204,20 +201,6 @@ public class Session {
         } catch (Exception e) {
             Log.e("SessionAct", "Session.leaveSession", e);
         }
-    }
-
-    public void leaveSessionMinimal() {
-        this.localParticipant.getMediaStream().audioTracks.get(0).dispose();
-
-        websocket.setWebsocketCancelled(true);
-        if (websocket != null) {
-            websocket.leaveRoom();
-            websocket.disconnect();
-        }
-
-        /*this.localParticipant.removeStream(this.localParticipant.getVideoView());
-
-        this.localParticipant.audioTrack.dispose();*/
     }
 
     public void zzz() {

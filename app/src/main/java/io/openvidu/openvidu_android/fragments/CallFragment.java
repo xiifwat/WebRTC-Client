@@ -67,6 +67,7 @@ public class CallFragment extends Fragment {
     private TextView btnToggleCamera, btnToggleCallMode, btnToggleMic;
 
     private CallManager mCallManager;
+    private Context mContext;
 
 
     @Override
@@ -74,6 +75,7 @@ public class CallFragment extends Fragment {
                              Bundle savedInstanceState) {
 
         rootView = inflater.inflate(R.layout.fragment_call, container, false);
+        mContext = getActivity().getApplicationContext();
 
         initializeView();
 
@@ -241,7 +243,7 @@ public class CallFragment extends Fragment {
 
     private void getTokenSuccess(String token, String sessionId) {
         // Initialize our session
-        Session session = new Session(sessionId, token, views_container, requireContext());
+        Session session = new Session(sessionId, token, views_container, mContext);
         mCallManager.setSession(session);
 
         // Initialize our local participant and createRemoteParticipantVideostart local camera
@@ -251,12 +253,12 @@ public class CallFragment extends Fragment {
         LocalParticipant localParticipant;
 
         if (mCallManager.getCallMode().equals(JsonConstants.MODE_VIDEO_CALL)) {
-            localParticipant = new LocalParticipant(participantName, session, requireContext(), localVideoView, mCallManager.getCallMode());
+            localParticipant = new LocalParticipant(participantName, session, mContext, localVideoView, mCallManager.getCallMode());
             localParticipant.startCamera(true);
             localParticipant.showStream(localVideoView);
             localParticipant.toggleCapture(true);
         } else {
-            localParticipant = new LocalParticipant(participantName, session, requireContext(), null, mCallManager.getCallMode());
+            localParticipant = new LocalParticipant(participantName, session, mContext, null, mCallManager.getCallMode());
             localParticipant.startCamera(true);
             localParticipant.toggleCapture(false);
         }
@@ -318,7 +320,7 @@ public class CallFragment extends Fragment {
 
     private AudioManager getAudioManager() {
         if (audioManager == null)
-            audioManager = (AudioManager) requireContext().getSystemService(Context.AUDIO_SERVICE);
+            audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
 
         return audioManager;
     }

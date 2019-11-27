@@ -213,11 +213,7 @@ public class CallManager implements WsConnectionListener {
 
         int participantCount = instance.get().getSession().remoteParticipantCount();
         if(!instance.get().isAppVisible() && participantCount==0) {
-            //instance.leaveSession();
-            new Handler(Looper.getMainLooper()).post(() -> {
-                instance.get().getSession().leaveSessionMinimal();
-                instance.get().clearInstance();
-            });
+            instance.get().leaveSession();
         }
     }
 
@@ -248,8 +244,7 @@ public class CallManager implements WsConnectionListener {
 
         if(!instance.get().isAppVisible()) {
             new Handler(Looper.getMainLooper()).post(() -> {
-                instance.get().getSession().leaveSessionMinimal();
-                instance.get().clearInstance();
+                instance.get().leaveSession();
             });
         }
     }
