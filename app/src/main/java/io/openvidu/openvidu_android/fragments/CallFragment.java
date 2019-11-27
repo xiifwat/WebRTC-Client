@@ -82,7 +82,7 @@ public class CallFragment extends Fragment {
 
         if (!CallManager.hasInstance()) {
 
-            mCallManager = CallManager.getInstance(requireActivity().getApplicationContext());
+            mCallManager = CallManager.getInstance();
 
             String callMode = getArguments() == null ? JsonConstants.MODE_VIDEO_CALL : getArguments().getString("call_mode");
             String SESSION_NAME = getArguments() == null ? "abc" : getArguments().getString("sessionID");
@@ -99,50 +99,24 @@ public class CallFragment extends Fragment {
             initializePtt();
         } else {
             // Already a call is ongoing
-            mCallManager = CallManager.getInstance(requireActivity().getApplicationContext());
+            mCallManager = CallManager.getInstance();
 
             if(mCallManager.getSession().remoteParticipantCount()==0) {
-                tvInfo.setText("Ringing...");
+                tvInfo.setText(getString(R.string.text_waiting));
                 tvInfo.setVisibility(View.VISIBLE);
             } else {
                 tvInfo.setVisibility(View.GONE);
+                // local participant
+                initLocalVideoView();
 
                 // remote participants
                 Map<String, RemoteParticipant> remoteParticipants = mCallManager.getSession().getRemoteParticipants();
                 //views_container.removeAllViews();
 
                 for (RemoteParticipant remoteParticipant : remoteParticipants.values()) {
-
-                    View rowView = remoteParticipant.getVideoView();
-                    // remove previous parent
-                    ((ViewGroup) rowView.getParent()).removeView(rowView);
-                    FlowLayout.LayoutParams lp = new LinearLayout.LayoutParams(OpenViduApp.cellSize, OpenViduApp.cellSize);
-                    rowView.setLayoutParams(lp);
-                    //int rowId = View.generateViewId();
-                    //rowView.setId(rowId);
-                    views_container.addView(rowView);
-
-                    /*View textView = ((ViewGroup) rowView).getChildAt(1);
-                    remoteParticipant.setParticipantNameText((TextView) textView);
-                    remoteParticipant.setView(rowView);*/
-
-                    rowView.setOnClickListener(view -> {
-                        Toast.makeText(requireContext(), remoteParticipant.getParticipantName(), Toast.LENGTH_SHORT).show();
-
-                        // Switch view
-                        SurfaceViewRenderer tmpRemote = remoteParticipant.getVideoView();
-                        SurfaceViewRenderer tmpLocal = mCallManager.getLocalParticipant().getVideoView();
-
-                        mCallManager.getLocalParticipant().swap(tmpRemote);
-                        remoteParticipant.swap(tmpLocal);
-                    });
-
-                    //remoteParticipant.getParticipantNameText().setText(remoteParticipant.getParticipantName());
-                    //remoteParticipant.getParticipantNameText().setPadding(20, 3, 20, 3);
+                    SurfaceViewRenderer temp = getRemoteVideoView(remoteParticipant);
+                    remoteParticipant.swap(temp);
                 }
-
-                // local participant
-                initLocalVideoView();
 
                 if (mCallManager.getCallMode().equals(JsonConstants.MODE_VIDEO_CALL)) {
                     mCallManager.getLocalParticipant().showStream(localVideoView);
@@ -184,6 +158,14 @@ public class CallFragment extends Fragment {
         btnToggleCallMode.setOnClickListener(this::onClick);
         btnToggleCamera.setOnClickListener(this::onClick);
         btnToggleMic.setOnClickListener(this::onClick);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        views_container.removeAllViews ();
+        localVideoView.release ();
     }
 
     private void initializePtt() {
@@ -401,6 +383,44 @@ public class CallFragment extends Fragment {
         }
     }
 
+    private SurfaceViewRenderer getRemoteVideoView(RemoteParticipant remoteParticipant) {
+        View rowView = getLayoutInflater().inflate(R.layout.peer_video, null);
+        FlowLayout.LayoutParams lp = new LinearLayout.LayoutParams(OpenViduApp.cellSize, OpenViduApp.cellSize);
+        rowView.setLayoutParams(lp);
+        int rowId = View.generateViewId();
+        rowView.setId(rowId);
+
+        views_container.addView(rowView);
+
+        SurfaceViewRenderer videoView = (SurfaceViewRenderer) ((ViewGroup) rowView).getChildAt(0);
+        remoteParticipant.setVideoView(videoView);
+        videoView.setMirror(false);
+
+        EglBase rootEglBase = EglBase.create();
+        videoView.init(rootEglBase.getEglBaseContext(), null);
+        videoView.setZOrderMediaOverlay(true);
+        View textView = ((ViewGroup) rowView).getChildAt(1);
+
+        remoteParticipant.setParticipantNameText((TextView) textView);
+        remoteParticipant.setView(rowView);
+
+        rowView.setOnClickListener(view -> {
+            Toast.makeText(requireContext(), remoteParticipant.getParticipantName(), Toast.LENGTH_SHORT).show();
+
+            // Switch view
+            SurfaceViewRenderer tmpRemote = remoteParticipant.getVideoView();
+            SurfaceViewRenderer tmpLocal = mCallManager.getLocalParticipant().getVideoView();
+
+            mCallManager.getLocalParticipant().swap(tmpRemote);
+            remoteParticipant.swap(tmpLocal);
+        });
+
+        remoteParticipant.getParticipantNameText().setText(remoteParticipant.getParticipantName());
+        remoteParticipant.getParticipantNameText().setPadding(20, 3, 20, 3);
+
+        return videoView;
+    }
+
     //----------------------------
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -417,42 +437,13 @@ public class CallFragment extends Fragment {
             case 0:
                 Log.d(TAG, "roomJoined");
 
-                tvInfo.setText("Ringing...");
+                tvInfo.setText(getString(R.string.text_waiting));
                 mCallManager.setOnCall(true);
                 break;
 
             case 1:
                 RemoteParticipant remoteParticipant = event.getRemoteParticipant();
-
-                View rowView = getLayoutInflater().inflate(R.layout.peer_video, null);
-                FlowLayout.LayoutParams lp = new LinearLayout.LayoutParams(OpenViduApp.cellSize, OpenViduApp.cellSize);
-                rowView.setLayoutParams(lp);
-                int rowId = View.generateViewId();
-                rowView.setId(rowId);
-                views_container.addView(rowView);
-                SurfaceViewRenderer videoView = (SurfaceViewRenderer) ((ViewGroup) rowView).getChildAt(0);
-                remoteParticipant.setVideoView(videoView);
-                videoView.setMirror(false);
-                EglBase rootEglBase = EglBase.create();
-                videoView.init(rootEglBase.getEglBaseContext(), null);
-                videoView.setZOrderMediaOverlay(true);
-                View textView = ((ViewGroup) rowView).getChildAt(1);
-                remoteParticipant.setParticipantNameText((TextView) textView);
-                remoteParticipant.setView(rowView);
-
-                rowView.setOnClickListener(view -> {
-                    Toast.makeText(requireContext(), remoteParticipant.getParticipantName(), Toast.LENGTH_SHORT).show();
-
-                    // Switch view
-                    SurfaceViewRenderer tmpRemote = remoteParticipant.getVideoView();
-                    SurfaceViewRenderer tmpLocal = mCallManager.getLocalParticipant().getVideoView();
-
-                    mCallManager.getLocalParticipant().swap(tmpRemote);
-                    remoteParticipant.swap(tmpLocal);
-                });
-
-                remoteParticipant.getParticipantNameText().setText(remoteParticipant.getParticipantName());
-                remoteParticipant.getParticipantNameText().setPadding(20, 3, 20, 3);
+                getRemoteVideoView(remoteParticipant);
 
                 if (tvInfo.getVisibility() == View.VISIBLE)
                     tvInfo.setVisibility(View.GONE);

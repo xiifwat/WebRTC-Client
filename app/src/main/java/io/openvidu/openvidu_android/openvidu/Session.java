@@ -11,8 +11,6 @@ import org.webrtc.IceCandidate;
 import org.webrtc.MediaConstraints;
 import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
-import org.webrtc.RtpReceiver;
-import org.webrtc.RtpSender;
 import org.webrtc.SessionDescription;
 import org.webrtc.SoftwareVideoDecoderFactory;
 import org.webrtc.SoftwareVideoEncoderFactory;
@@ -26,6 +24,7 @@ import java.util.Map;
 
 import io.openvidu.openvidu_android.observers.CustomPeerConnectionObserver;
 import io.openvidu.openvidu_android.observers.CustomSdpObserver;
+import io.openvidu.openvidu_android.utils.CallManager;
 import io.openvidu.openvidu_android.websocket.CustomWebSocket;
 
 public class Session {
@@ -186,8 +185,12 @@ public class Session {
                 websocket.leaveRoom();
                 websocket.disconnect();
             }
-            // FIXME this part is commented to avoid crash but this is essential
-            /*this.localParticipant.dispose();
+
+            this.localParticipant.enableAudioInput(false);
+            if(CallManager.getInstance().hasAppMinimised()) return;
+
+            // FIXME this part is skipped if the app is minimised to avoid crash but this is essential
+            this.localParticipant.dispose();
             for (RemoteParticipant remoteParticipant : remoteParticipants.values()) {
                 if (remoteParticipant.getPeerConnection() != null) {
                     remoteParticipant.getPeerConnection().close();
@@ -197,7 +200,7 @@ public class Session {
             if (peerConnectionFactory != null) {
                 peerConnectionFactory.dispose();
                 peerConnectionFactory = null;
-            }*/
+            }
         } catch (Exception e) {
             Log.e("SessionAct", "Session.leaveSession", e);
         }

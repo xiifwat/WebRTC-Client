@@ -1,10 +1,8 @@
 package io.openvidu.openvidu_android.utils;
 
-import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.nex3z.flowlayout.FlowLayout;
 
@@ -21,7 +19,7 @@ import io.openvidu.openvidu_android.openvidu.Session;
 
 public class CallManager implements WsConnectionListener {
     private static WeakReference<CallManager> instance = null;
-    private static WeakReference<Context> mContext;
+    //private static WeakReference<Context> mContext;
 
     private String PARTICIPANT_NAME;
     private String SESSION_NAME;
@@ -38,21 +36,23 @@ public class CallManager implements WsConnectionListener {
 
     private boolean onCall = false;
     private boolean isAppVisible = false;
+    private boolean hasAppMinimised = false;
     private String callMode;
     private String TAG = "ov~CallManager";
 
-    public static CallManager getInstance(Context context) {
+    public static CallManager getInstance(/*Context context*/) {
         if (instance == null) {
             instance = new WeakReference<>(new CallManager());
-            mContext = new WeakReference<>(context);
+            //mContext = new WeakReference<>(context);
         }
         return instance.get();
     }
 
     private void clearInstance() {
-        mContext = null;
+        //mContext = null;
         instance.clear();
         instance = null;
+        hasAppMinimised = false;
     }
 
     public static boolean hasInstance() {
@@ -161,6 +161,12 @@ public class CallManager implements WsConnectionListener {
 
     public void setAppVisible(boolean appVisible) {
         isAppVisible = appVisible;
+
+        if(!isAppVisible) hasAppMinimised = true;
+    }
+
+    public boolean hasAppMinimised() {
+        return hasAppMinimised;
     }
 
     public void switchViewToDisconnectedState() {
