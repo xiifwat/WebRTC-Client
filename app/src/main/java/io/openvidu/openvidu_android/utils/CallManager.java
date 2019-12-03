@@ -17,6 +17,10 @@ import io.openvidu.openvidu_android.openvidu.LocalParticipant;
 import io.openvidu.openvidu_android.openvidu.RemoteParticipant;
 import io.openvidu.openvidu_android.openvidu.Session;
 
+/**
+ * All EventBus events are sending to
+ * {@link io.openvidu.openvidu_android.fragments.CallFragment#onMessageEvent(MessageEvent)}
+ */
 public class CallManager implements WsConnectionListener {
     private static WeakReference<CallManager> instance = null;
     //private static WeakReference<Context> mContext;
@@ -24,7 +28,6 @@ public class CallManager implements WsConnectionListener {
     private String PARTICIPANT_NAME;
     private String SESSION_NAME;
     private Session session;
-    private FlowLayout views_container;
     private SurfaceViewRenderer localVideoView;
     private LocalParticipant localParticipant;
 
@@ -77,14 +80,6 @@ public class CallManager implements WsConnectionListener {
 
     public void setSession(Session session) {
         this.session = session;
-    }
-
-    public FlowLayout getViews_container() {
-        return views_container;
-    }
-
-    public void setViews_container(FlowLayout views_container) {
-        this.views_container = views_container;
     }
 
     public SurfaceViewRenderer getLocalVideoView() {

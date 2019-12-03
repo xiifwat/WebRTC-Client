@@ -12,15 +12,12 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.Fragment;
-
-import com.nex3z.flowlayout.FlowLayout;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -35,7 +32,6 @@ import org.webrtc.VideoTrack;
 import java.io.IOException;
 import java.util.Map;
 
-import io.openvidu.openvidu_android.OpenViduApp;
 import io.openvidu.openvidu_android.R;
 import io.openvidu.openvidu_android.constants.JsonConstants;
 import io.openvidu.openvidu_android.openvidu.LocalParticipant;
@@ -57,8 +53,7 @@ public class CallFragment extends Fragment {
     private View rootView;
     private CustomHttpClient httpClient;
     private AudioManager audioManager;
-    private FlowLayout views_container;
-    private SurfaceViewRenderer localVideoView;
+    private SurfaceViewRenderer localVideoView, remote1, remote2, remote3;
 
     private String OPENVIDU_URL;
     private String OPENVIDU_SECRET;
@@ -96,7 +91,6 @@ public class CallFragment extends Fragment {
             mCallManager.setOnCall(false);
 
             mCallManager.setLocalVideoView(localVideoView);
-            mCallManager.setViews_container(views_container);
 
             initializePtt();
         } else {
@@ -147,8 +141,10 @@ public class CallFragment extends Fragment {
     }
 
     private void initializeView() {
-        views_container = rootView.findViewById(R.id.views_container);
         localVideoView = rootView.findViewById(R.id.local_participant);
+        remote1 = rootView.findViewById(R.id.remote_participant_1);
+        remote2 = rootView.findViewById(R.id.remote_participant_2);
+        remote3 = rootView.findViewById(R.id.remote_participant_3);
         tvInfo = rootView.findViewById(R.id.textView2);
 
         btnCall = rootView.findViewById(R.id.iv_call);
@@ -166,7 +162,6 @@ public class CallFragment extends Fragment {
     public void onDestroy() {
         super.onDestroy();
 
-        views_container.removeAllViews ();
         localVideoView.release ();
     }
 
@@ -243,7 +238,7 @@ public class CallFragment extends Fragment {
 
     private void getTokenSuccess(String token, String sessionId) {
         // Initialize our session
-        Session session = new Session(sessionId, token, views_container, mContext);
+        Session session = new Session(sessionId, token, mContext);
         mCallManager.setSession(session);
 
         // Initialize our local participant and createRemoteParticipantVideostart local camera
@@ -386,44 +381,46 @@ public class CallFragment extends Fragment {
     }
 
     private SurfaceViewRenderer getRemoteVideoView(RemoteParticipant remoteParticipant) {
-        View rowView = getLayoutInflater().inflate(R.layout.peer_video, null);
-        FlowLayout.LayoutParams lp = new LinearLayout.LayoutParams(OpenViduApp.cellSize, OpenViduApp.cellSize);
-        rowView.setLayoutParams(lp);
-        int rowId = View.generateViewId();
-        rowView.setId(rowId);
+        SurfaceViewRenderer videoView;
 
-        views_container.addView(rowView);
+        switch (mCallManager.getSession().remoteParticipantCount()) {
+            case 1:
+                videoView = remote1;
+                remote1.setVisibility(View.VISIBLE);
+                break;
 
-        SurfaceViewRenderer videoView = (SurfaceViewRenderer) ((ViewGroup) rowView).getChildAt(0);
+            case 2:
+                videoView = remote2;
+                remote2.setVisibility(View.VISIBLE);
+                break;
+
+            default:
+                videoView = remote3;
+                remote3.setVisibility(View.VISIBLE);
+        }
         remoteParticipant.setVideoView(videoView);
         videoView.setMirror(false);
 
         EglBase rootEglBase = EglBase.create();
         videoView.init(rootEglBase.getEglBaseContext(), null);
         videoView.setZOrderMediaOverlay(true);
-        View textView = ((ViewGroup) rowView).getChildAt(1);
-
-        remoteParticipant.setParticipantNameText((TextView) textView);
-        remoteParticipant.setView(rowView);
-
-        rowView.setOnClickListener(view -> {
-            Toast.makeText(requireContext(), remoteParticipant.getParticipantName(), Toast.LENGTH_SHORT).show();
-
-            // Switch view
-            SurfaceViewRenderer tmpRemote = remoteParticipant.getVideoView();
-            SurfaceViewRenderer tmpLocal = mCallManager.getLocalParticipant().getVideoView();
-
-            mCallManager.getLocalParticipant().swap(tmpRemote);
-            remoteParticipant.swap(tmpLocal);
-        });
-
-        remoteParticipant.getParticipantNameText().setText(remoteParticipant.getParticipantName());
-        remoteParticipant.getParticipantNameText().setPadding(20, 3, 20, 3);
 
         return videoView;
     }
 
-    //----------------------------
+    public void preparePip(boolean pipEntered) {
+        if(pipEntered) {
+            // hide controls
+            rootView.findViewById(R.id.ll_controller).setVisibility(View.GONE);
+            btnCall.setVisibility(View.GONE);
+        } else {
+            // show controls
+            rootView.findViewById(R.id.ll_controller).setVisibility(View.VISIBLE);
+            btnCall.setVisibility(View.VISIBLE);
+        }
+    }
+
+    // ---- EventBus event handling ----
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onMessageEvent(MessageEvent event) {
@@ -468,7 +465,9 @@ public class CallFragment extends Fragment {
                         mCallManager.setOnCall(false);
                         mCallManager.leaveSession();
                     } else {
-                        mCallManager.getSession().removeView(event.getRemoteParticipant().getView());
+                        SurfaceViewRenderer view = event.getRemoteParticipant().getVideoView();
+                        view.setVisibility(View.GONE);
+                        view.release();
                     }
                 };
                 mainHandler.post(myRunnable);

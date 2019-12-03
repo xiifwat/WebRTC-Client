@@ -2,8 +2,6 @@ package io.openvidu.openvidu_android.openvidu;
 
 import android.content.Context;
 import android.util.Log;
-import android.view.View;
-import android.widget.LinearLayout;
 
 import com.nex3z.flowlayout.FlowLayout;
 
@@ -32,14 +30,14 @@ public class Session {
     private Map<String, RemoteParticipant> remoteParticipants = new HashMap<>();
     private String id;
     private String token;
-    private FlowLayout views_container;
+    //private FlowLayout views_container;
     private PeerConnectionFactory peerConnectionFactory;
     private CustomWebSocket websocket;
 
-    public Session(String id, String token, FlowLayout views_container, Context context) {
+    public Session(String id, String token, Context context) {
         this.id = id;
         this.token = token;
-        this.views_container = views_container;
+        //this.views_container = views_container;
 
         PeerConnectionFactory.InitializationOptions.Builder optionsBuilder = PeerConnectionFactory.InitializationOptions.builder(context);
         optionsBuilder.setEnableInternalTracer(true);
@@ -192,7 +190,7 @@ public class Session {
                 if (remoteParticipant.getPeerConnection() != null) {
                     remoteParticipant.getPeerConnection().close();
                 }
-                views_container.removeView(remoteParticipant.getView()); // Must exec from UI thread
+                //views_container.removeView(remoteParticipant.getView()); // Must exec from UI thread
             }
             if (peerConnectionFactory != null) {
                 peerConnectionFactory.dispose();
@@ -203,21 +201,21 @@ public class Session {
         }
     }
 
-    public void zzz() {
+    /*public void zzz() {
         this.localParticipant.toggleCapture(false);
         this.localParticipant.removeStream(localParticipant.getVideoView());
         this.localParticipant.getVideoView().release();
 
         for (RemoteParticipant remoteParticipant : remoteParticipants.values()) {
             remoteParticipant.getVideoView().release();
-            views_container.removeView(remoteParticipant.getView()); // Must exec from UI thread
+            //views_container.removeView(remoteParticipant.getView()); // Must exec from UI thread
         }
     }
 
     public void removeView(View view) {
         FlowLayout.LayoutParams lp = new LinearLayout.LayoutParams (0, 0);
         view.setLayoutParams (lp);
-        this.views_container.removeView(view);
-    }
+        //this.views_container.removeView(view);
+    }*/
 
 }
